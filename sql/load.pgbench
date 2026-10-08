@@ -1,0 +1,13 @@
+-- pgbench custom script: one "customer places an order" transaction.
+\set cid random(1, 2000)
+\set pid random(1, 50)
+\set qty random(1, 5)
+BEGIN;
+INSERT INTO orders (customer_id) VALUES (:cid) RETURNING id AS oid \gset
+INSERT INTO order_items (order_id, product_id, qty, unit_price_cents)
+  SELECT :oid, :pid, :qty, price_cents FROM products WHERE id = :pid;
+UPDATE orders SET status = 'paid'
+  WHERE id = (SELECT id FROM orders WHERE status = 'new' ORDER BY id LIMIT 1);
+INSERT INTO audit_log (what) VALUES ('order ' || :oid || ' placed');
+SELECT nextval('invoice_number_seq');
+COMMIT;
